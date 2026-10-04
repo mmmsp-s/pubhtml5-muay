@@ -14,8 +14,6 @@ import requests
 from bs4 import BeautifulSoup
 
 USERS = ["aswhk", "fqeu"]
-if __import__("os").environ.get("DEBUG_ONE"):
-    USERS = USERS[:1]
 MAX_PAGES = 200
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "site" / "books.json"
@@ -80,32 +78,70 @@ def parse_page(html, user, base):
     return list(found.values())
 
 
-def page_urls(user):
-    base = f"https://pubhtml5.com/homepage/{user}/"
-    yield base
-    for n in range(2, MAX_PAGES + 1):
-        yield f"{base}{n}/"
+API = "https://pubhtml5.com/hostInfo/get-homepage-books.php"
+PAGE_SIZE = 20
+
+
+def pick(d, *keys):
+    for k in keys:
+        v = d.get(k)
+        if v not in (None, "", 0):
+            return str(v)
+    return ""
+
+
+def from_api(item, user):
+    """แปลงข้อมูลเล่มจาก API ให้เป็นรูปแบบของเรา (ชื่อ key เดาไว้หลายแบบ)"""
+    link = pick(item, "url", "bookUrl", "bookurl", "link", "href", "onlineUrl", "readUrl")
+    m = book_re(user).match(urljoin("https://pubhtml5.com/", link)) if link else None
+    bid = m.group(1).lower() if m else pick(item, "bookPath", "path", "bookId", "bookid", "id")
+    bid = bid.strip("/").split("/")[-1]
+    title = clean(pick(item, "title", "bookTitle", "booktitle", "name", "bookName"))
+    cover = pick(item, "cover", "coverUrl", "thumb", "thumbnail", "image", "img", "pic", "bookCover")
+    date = pick(item, "time", "createTime", "create_time", "publishTime", "date", "uploadTime", "updateTime")
+    return {"id": f"{user}/{bid}", "user": user, "bid": bid, "title": title,
+            "cover": urljoin("https://pubhtml5.com/", cover) if cover else "",
+            "page_url": urljoin("https://pubhtml5.com/", link) if link else "",
+            "published": date}
 
 
 def scrape_user(user):
+    home = f"https://pubhtml5.com/homepage/{user}/"
+    html = get(home)
+    if html is None:
+        return []
+    m = re.search(r'homeUserId\s*=\s*"(\d+)"', html) or re.search(r'userid:\s*"(\d+)"', html)
+    if not m:
+        dump(html, home)
+        return []
+    uid = m.group(1)
+    last_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     books, seen = [], set()
-    for i, url in enumerate(page_urls(user)):
-        html = get(url)
-        if html is None:
+    for page in range(1, MAX_PAGES + 1):
+        try:
+            r = S.post(API, data={"pageSize": PAGE_SIZE, "lastTime": last_time, "userid": uid,
+                                  "page": page, "myUid": "-1"},
+                       headers={"Referer": home, "X-Requested-With": "XMLHttpRequest"}, timeout=30)
+            data = r.json()
+        except Exception as e:
+            print(f"  ! page {page}: {e}", file=sys.stderr)
             break
-        if i == 0:
-            DEBUG.mkdir(exist_ok=True)
-            (DEBUG / f"{user}-page1.html").write_text(html, encoding="utf-8")
-        new = [b for b in parse_page(html, user, url) if b["bid"] not in seen]
-        print(f"  {url}: {len(new)} new")
-        if not new:
-            if i == 0:
-                dump(html, url)
+        items = data.get("values") or []
+        if page == 1:
+            print(f"  status={data.get('status')} keys={list(data.keys())}")
+            if items:
+                print("  sample:", json.dumps(items[0], ensure_ascii=False)[:1500])
+        new = 0
+        for it in items:
+            b = from_api(it, user)
+            if b["bid"] and b["bid"] not in seen:
+                seen.add(b["bid"])
+                books.append(b)
+                new += 1
+        print(f"  page {page}: {len(items)} items, {new} new")
+        if len(items) < PAGE_SIZE or not new:
             break
-        for b in new:
-            seen.add(b["bid"])
-            books.append(b)
-        time.sleep(1)
+        time.sleep(0.7)
     return books
 
 
