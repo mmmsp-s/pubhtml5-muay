@@ -19,6 +19,8 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "site" / "books.json"
 DEBUG = ROOT / "debug"
 
+DEADLINE = time.time() + 40 * 60  # หยุดเช็กปุ่มโหลดเมื่อใกล้หมดเวลา
+
 S = requests.Session()
 S.headers.update({
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -139,7 +141,7 @@ def scrape_user(user):
                 books.append(b)
                 new += 1
         print(f"  page {page}: {len(items)} items, {new} new")
-        if len(items) < PAGE_SIZE or not new:
+        if len(items) < PAGE_SIZE or not new or time.time() > DEADLINE:
             break
         time.sleep(0.7)
     return books
@@ -216,7 +218,7 @@ def main():
             merged["read_url"] = f"https://online.pubhtml5.com/{user}/{b['bid']}/"
             if not merged.get("title"):
                 merged["title"] = b["bid"]
-            if "can_download" not in prev and checks_left > 0:
+            if "can_download" not in prev and checks_left > 0 and time.time() < DEADLINE:
                 checks_left -= 1
                 merged["can_download"], merged["download_url"] = check_download(merged)
                 time.sleep(0.3)
