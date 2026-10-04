@@ -97,12 +97,35 @@ def scrape_user(user):
         new = [b for b in parse_page(html, user, url) if b["bid"] not in seen]
         print(f"  {url}: {len(new)} new")
         if not new:
+            if i == 0:
+                dump(html, url)
             break
         for b in new:
             seen.add(b["bid"])
             books.append(b)
         time.sleep(1)
     return books
+
+
+def dump(html, label):
+    """พิมพ์โครงสร้างหน้าเว็บลง log เพื่อใช้ตรวจเวลาดึงไม่เจอ"""
+    soup = BeautifulSoup(html, "html.parser")
+    print(f"---- DEBUG {label}: {len(html)} bytes, title={clean(soup.title.string if soup.title else '')!r}")
+    hrefs = sorted({a['href'] for a in soup.find_all('a', href=True)})
+    print(f"links ({len(hrefs)}):")
+    for h in hrefs[:80]:
+        print("  ", h[:160])
+    for sc in soup.find_all('script'):
+        if sc.get('src'):
+            print("  script", sc['src'][:160])
+        else:
+            t = sc.get_text()
+            for m in re.findall(r"[\w/.:-]*(?:ajax|api|\.php|json|getBook|bookList|page)[\w/.?=&:-]*", t, re.I)[:30]:
+                print("  js>", m[:160])
+    for m in sorted(set(re.findall(r"(?:data-[\w-]+|id|class)=\"[^\"]*(?:book|item|list|page|more)[^\"]*\"", html, re.I)))[:60]:
+        print("  attr", m[:160])
+    body = soup.body.get_text(" ", strip=True) if soup.body else ""
+    print("  text:", body[:1500])
 
 
 def check_download(b):
