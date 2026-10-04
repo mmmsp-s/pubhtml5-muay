@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ชั้นนิยาย Muay</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600&family=Sarabun:wght@400;500;600&display=swap">
+<style>
+/* layout: sticky toolbar on top, card grid below, source tabs filter the grid */
+:root{
+  --bg:#f5f6fa; --surface:#ffffff; --fg:#1c2130; --muted:#6b7285; --line:#dde1ea;
+  --accent:#2f54c9; --accent-soft:#e8edfb; --new:#d9480f; --new-soft:#fff0e6;
+  --read:#2b8a3e; --read-soft:#e6f6ea;
+  --display:'Mitr',system-ui,sans-serif; --body:'Sarabun',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#13161e; --surface:#1c2029; --fg:#e8eaf0; --muted:#9aa1b4; --line:#2d3340;
+  --accent:#8ea4f2; --accent-soft:#232b45; --new:#ff9a5c; --new-soft:#3a2416;
+  --read:#6fcf85; --read-soft:#1b3322; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#13161e; --surface:#1c2029; --fg:#e8eaf0; --muted:#9aa1b4; --line:#2d3340;
+  --accent:#8ea4f2; --accent-soft:#232b45; --new:#ff9a5c; --new-soft:#3a2416;
+  --read:#6fcf85; --read-soft:#1b3322; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:0 32px}
+.wrap{max-width:1040px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);font-weight:500;margin:0;text-wrap:balance}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding-block:14px 10px;z-index:2;border-bottom:1px solid var(--line)}
+.title{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.title h1{font-size:24px}
+.title .upd{color:var(--muted);font-size:13px}
+.demo{display:inline-block;font-size:11px;letter-spacing:.04em;text-transform:uppercase;background:var(--new-soft);color:var(--new);padding:2px 8px;border-radius:999px;margin-left:8px;vertical-align:middle;font-family:var(--body)}
+.tools{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.search{flex:1 1 220px;min-width:0;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.search input{flex:1;min-width:0;border:0;background:transparent;color:var(--fg);font:inherit;font-size:16px}
+.search input::placeholder{color:var(--muted)}
+.search svg{flex:none;width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:2}
+select{font:inherit;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.tabs{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:999px;padding:5px 12px;font-size:14px;display:flex;gap:6px;align-items:center}
+.tab[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.tab .n{font-size:12px;opacity:.75;font-variant-numeric:tabular-nums}
+
+.stats{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin:14px 0 10px}
+.stats b{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.card.is-read{opacity:.72}
+.cover{aspect-ratio:3/2;max-width:100%;display:flex;align-items:flex-end;padding:10px;font-family:var(--display);font-size:13px;color:#fff;position:relative;background:linear-gradient(135deg,var(--c1),var(--c2))}
+.cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cover .cap{position:relative;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.badge.gone{background:var(--muted)}
+.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
+.cover .vol{font-size:34px;line-height:1;font-weight:600;opacity:.95}
+.badge{z-index:1;position:absolute;top:8px;left:8px;background:var(--new);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;letter-spacing:.03em}
+.badge.read{background:var(--read)}
+.body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
+.body h3{font-size:16px;line-height:1.3}
+.meta{display:flex;gap:8px;color:var(--muted);font-size:12.5px;flex-wrap:wrap}
+.meta .src{color:var(--accent);background:var(--accent-soft);padding:0 6px;border-radius:4px}
+.actions{display:flex;gap:6px;margin-top:auto;padding-top:6px}
+.btn{flex:1;border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:8px;padding:7px 8px;font-size:13.5px;text-align:center;text-decoration:none}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
+.btn.dl{border-color:var(--accent);color:var(--accent);font-weight:500}
+.btn.ok{color:var(--read);border-color:var(--read)}
+.empty{padding:40px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.foot{margin-top:28px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;line-height:1.6}
+.foot ul{margin:6px 0 0;padding-left:18px}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="title">
+      <h1>ชั้นนิยาย Muay </h1>
+      <span class="upd">อัปเดตล่าสุด <span id="updated"></span> · ดึงอัตโนมัติทุกวัน</span>
+    </div>
+    <div class="tools">
+      <label class="search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="พิมพ์ชื่อเรื่อง หรือเลขตอน เช่น  มายา 12" autocomplete="off">
+      </label>
+      <select id="sort" aria-label="เรียงตาม">
+        <option value="new">ใหม่สุดก่อน</option>
+        <option value="old">เก่าสุดก่อน</option>
+        <option value="az">ชื่อเรื่อง ก-ฮ</option>
+      </select>
+    </div>
+    <div class="tabs" id="tabs">
+      <button class="tab" data-src="all" aria-pressed="true">ทั้งหมด <span class="n"></span></button>
+      <button class="tab" data-src="aswhk" aria-pressed="false">aswhk <span class="n"></span></button>
+      <button class="tab" data-src="fqeu" aria-pressed="false">fqeu <span class="n"></span></button>
+      <button class="tab" data-src="unread" aria-pressed="false">ยังไม่ได้อ่าน <span class="n"></span></button>
+    </div>
+  </header>
+
+  <div class="stats">
+    <span>ทั้งหมด <b id="sTotal"></b> เล่ม</span>
+    <span>ใหม่ตั้งแต่ครั้งก่อน <b id="sNew"></b> เล่ม</span>
+    <span>อ่านแล้ว <b id="sRead"></b> เล่ม</span>
+  </div>
+
+  <main id="grid" class="grid"></main>
+  <div id="empty" class="empty" hidden>กำลังโหลดรายการ...</div>
+
+  <footer class="foot">
+    ข้อมูลดึงจาก <a href="https://pubhtml5.com/homepage/aswhk/" target="_blank" rel="noopener">aswhk</a> และ
+    <a href="https://pubhtml5.com/homepage/fqeu/" target="_blank" rel="noopener">fqeu</a> บน pubhtml5 ไฟล์ทั้งหมดโหลดจาก pubhtml5 โดยตรง
+    เล่มที่มีป้าย "ถูกลบแล้ว" คือเล่มที่ไม่อยู่ในหน้าเจ้าของแล้ว ลิงก์อาจใช้ไม่ได้
+  </footer>
+</div>
+<div id="toast" class="toast" role="status"></div>
+
+<script>
+const DAY = 864e5;
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d } catch { return d } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)) } catch {} },
+};
+const readSet = new Set(store.get('read', []));
+const lastVisit = store.get('lastVisit', 0);
+store.set('lastVisit', Date.now());
+let books = [], src = 'all', query = '', sort = 'new';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = iso => new Date(iso).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+const isNew = b => lastVisit && new Date(b.first_seen).getTime() > lastVisit && !readSet.has(b.id);
+const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+const cmpNew = (a, b) => b.first_seen.localeCompare(a.first_seen) || (a.pos ?? 1e9) - (b.pos ?? 1e9);
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+function render() {
+  const q = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  let list = books.filter(b => {
+    if (src === 'unread' && readSet.has(b.id)) return false;
+    if (src !== 'all' && src !== 'unread' && b.user !== src) return false;
+    const hay = (b.title + ' ' + b.user).toLowerCase();
+    return q.every(w => hay.includes(w));
+  });
+  list.sort((a, b) => sort === 'az' ? a.title.localeCompare(b.title, 'th')
+    : sort === 'old' ? -cmpNew(a, b) : cmpNew(a, b));
+
+  const grid = $('#grid'); grid.innerHTML = '';
+  for (const b of list.slice(0, 600)) {
+    const read = readSet.has(b.id), h = hue(b.title);
+    const dl = b.can_download === false ? '' : `<a class="btn dl" href="${esc(b.download_url || b.page_url || b.read_url)}" target="_blank" rel="noopener">⬇ โหลด</a>`;
+    const badge = b.gone ? '<span class="badge gone">ถูกลบแล้ว</span>' : isNew(b) ? '<span class="badge">ใหม่</span>' : read ? '<span class="badge read">อ่านแล้ว</span>' : '';
+    const el = document.createElement('article');
+    el.className = 'card' + (read ? ' is-read' : '');
+    el.innerHTML = `
+      <div class="cover" style="--c1:hsl(${h} 55% 42%);--c2:hsl(${(h + 40) % 360} 60% 30%)">
+        ${badge}
+        ${b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
+        <div class="cap">${esc(b.title)}</div>
+      </div>
+      <div class="body">
+        <h3>${esc(b.title)}</h3>
+        <div class="meta"><span class="src">${esc(b.user)}</span><span>เจอเมื่อ ${fmt(b.first_seen)}</span></div>
+        <div class="actions">
+          <a class="btn primary" href="${esc(b.read_url)}" target="_blank" rel="noopener">เปิดอ่าน</a>
+          ${dl}
+          <button class="btn ${read ? 'ok' : ''}" data-read="${esc(b.id)}">${read ? '✓' : 'อ่านแล้ว'}</button>
+        </div>
+      </div>`;
+    grid.appendChild(el);
+  }
+  $('#empty').hidden = list.length > 0;
+  $('#empty').textContent = books.length ? 'ไม่พบเรื่องที่ค้นหา ลองพิมพ์สั้นลง' : 'ยังไม่มีข้อมูล';
+
+  $('#sTotal').textContent = books.length;
+  $('#sNew').textContent = books.filter(isNew).length;
+  $('#sRead').textContent = books.filter(b => readSet.has(b.id)).length;
+  const counts = { all: books.length, aswhk: 0, fqeu: 0, unread: 0 };
+  books.forEach(b => { counts[b.user] = (counts[b.user] || 0) + 1; if (!readSet.has(b.id)) counts.unread++; });
+  document.querySelectorAll('.tab').forEach(t => {
+    t.querySelector('.n').textContent = counts[t.dataset.src] ?? 0;
+    t.setAttribute('aria-pressed', t.dataset.src === src);
+  });
+}
+
+$('#q').addEventListener('input', e => { query = e.target.value; render(); });
+$('#sort').addEventListener('change', e => { sort = e.target.value; render(); });
+$('#tabs').addEventListener('click', e => {
+  const t = e.target.closest('.tab'); if (!t) return; src = t.dataset.src; render();
+});
+$('#grid').addEventListener('click', e => {
+  const r = e.target.closest('[data-read]'); if (!r) return;
+  const id = r.dataset.read;
+  readSet.has(id) ? readSet.delete(id) : readSet.add(id);
+  store.set('read', [...readSet]); render();
+});
+
+fetch('books.json', { cache: 'no-cache' }).then(r => r.json()).then(d => {
+  books = d.books || [];
+  $('#updated').textContent = new Date(d.updated).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' });
+  render();
+}).catch(() => { $('#empty').hidden = false; $('#empty').textContent = 'โหลดรายการไม่สำเร็จ ลองรีเฟรชหน้านี้'; });
+</script>
+</body>
+</html>
