@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "site" / "books.json"
 DEBUG = ROOT / "debug"
 
-DEADLINE = time.time() + 40 * 60  # หยุดเช็กปุ่มโหลดเมื่อใกล้หมดเวลา
+DEADLINE = time.time() + 40 * 60  # กันไม่ให้รันนานเกินไป
 
 S = requests.Session()
 S.headers.update({
@@ -93,18 +93,19 @@ def pick(d, *keys):
 
 
 def from_api(item, user):
-    """แปลงข้อมูลเล่มจาก API ให้เป็นรูปแบบของเรา (ชื่อ key เดาไว้หลายแบบ)"""
-    link = pick(item, "url", "bookUrl", "bookurl", "link", "href", "onlineUrl", "readUrl")
-    m = book_re(user).match(urljoin("https://pubhtml5.com/", link)) if link else None
-    bid = m.group(1).lower() if m else pick(item, "bookPath", "path", "bookId", "bookid", "id")
-    bid = bid.strip("/").split("/")[-1]
-    title = clean(pick(item, "title", "bookTitle", "booktitle", "name", "bookName"))
-    cover = pick(item, "cover", "coverUrl", "thumb", "thumbnail", "image", "img", "pic", "bookCover")
-    date = pick(item, "time", "createTime", "create_time", "publishTime", "date", "uploadTime", "updateTime")
-    return {"id": f"{user}/{bid}", "user": user, "bid": bid, "title": title,
-            "cover": urljoin("https://pubhtml5.com/", cover) if cover else "",
-            "page_url": urljoin("https://pubhtml5.com/", link) if link else "",
-            "published": date}
+    """แปลงข้อมูลเล่มจาก API ให้เป็นรูปแบบของเรา"""
+    bid = str(item.get("bLink") or "").strip("/")
+    if not bid:
+        m = book_re(user).match(str(item.get("url") or ""))
+        bid = m.group(1).lower() if m else ""
+    return {
+        "id": f"{user}/{bid}", "user": user, "bid": bid,
+        "title": clean(item.get("title")) or bid,
+        "num": int(item.get("bookid") or 0),
+        "read_url": item.get("url") or f"https://online.pubhtml5.com/{user}/{bid}/",
+        "cover": f"https://online.pubhtml5.com/{user}/{bid}/files/shot.jpg",
+        "page_url": f"https://pubhtml5.com/{user}/{bid}/",
+    }
 
 
 def scrape_user(user):
@@ -177,23 +178,6 @@ def dump(html, label):
     print("  text:", body[:1500])
 
 
-def check_download(b):
-    """เปิดหน้ารายละเอียดของเล่ม ดูว่ามีปุ่มดาวน์โหลดหรือไม่"""
-    url = b.get("page_url") or f"https://pubhtml5.com/{b['user']}/{b['bid']}/"
-    html = get(url)
-    if html is None:
-        return None, url
-    soup = BeautifulSoup(html, "html.parser")
-    for el in soup.find_all(["a", "button"]):
-        text = clean(el.get_text()).lower() + " " + " ".join(el.get("class", [])).lower()
-        if "download" in text or "ดาวน์โหลด" in text:
-            href = el.get("href")
-            if href and not href.startswith(("javascript", "#")):
-                return True, urljoin(url, href)
-            return True, url
-    return False, url
-
-
 def main():
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     old = {}
@@ -201,7 +185,6 @@ def main():
         old = {b["id"]: b for b in json.loads(OUT.read_text(encoding="utf-8")).get("books", [])}
 
     total_live = 0
-    checks_left = 300  # จำกัดการเปิดหน้ารายละเอียดต่อรอบ ที่เหลือทำรอบถัดไป
     live_ids = set()
     for user in USERS:
         print(f"== {user}")
@@ -215,13 +198,6 @@ def main():
             merged["last_seen"] = now
             merged["pos"] = pos
             merged["gone"] = False
-            merged["read_url"] = f"https://online.pubhtml5.com/{user}/{b['bid']}/"
-            if not merged.get("title"):
-                merged["title"] = b["bid"]
-            if "can_download" not in prev and checks_left > 0 and time.time() < DEADLINE:
-                checks_left -= 1
-                merged["can_download"], merged["download_url"] = check_download(merged)
-                time.sleep(0.3)
             old[b["id"]] = merged
 
     if total_live == 0:
@@ -232,9 +208,14 @@ def main():
         if bid not in live_ids:
             b["gone"] = True
 
+    for b in old.values():
+        b.pop("can_download", None)
+        b.pop("download_url", None)
     data = {"updated": now, "users": USERS, "books": list(old.values())}
     OUT.parent.mkdir(exist_ok=True)
-    OUT.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    rows = ",\n".join(json.dumps(b, ensure_ascii=False, separators=(",", ":")) for b in data["books"])
+    head = json.dumps({k: v for k, v in data.items() if k != "books"}, ensure_ascii=False)[:-1]
+    OUT.write_text(f'{head},"books":[\n{rows}\n]}}\n', encoding="utf-8")
     print(f"saved {len(old)} books ({total_live} live)")
 
 

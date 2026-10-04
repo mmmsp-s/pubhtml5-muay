@@ -68,6 +68,7 @@ select{font:inherit;background:var(--surface);color:var(--fg);border:1px solid v
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
 .btn.dl{border-color:var(--accent);color:var(--accent);font-weight:500}
 .btn.ok{color:var(--read);border-color:var(--read)}
+.morebtn{display:block;margin:16px auto 0;border:1px solid var(--accent);background:var(--surface);color:var(--accent);border-radius:999px;padding:10px 22px;font-size:15px;font-weight:500}
 .empty{padding:40px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
@@ -110,6 +111,7 @@ select{font:inherit;background:var(--surface);color:var(--fg);border:1px solid v
   </div>
 
   <main id="grid" class="grid"></main>
+  <button id="more" class="morebtn" hidden></button>
   <div id="empty" class="empty" hidden>กำลังโหลดรายการ...</div>
 
   <footer class="foot">
@@ -135,7 +137,9 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const fmt = iso => new Date(iso).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
 const isNew = b => lastVisit && new Date(b.first_seen).getTime() > lastVisit && !readSet.has(b.id);
 const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
-const cmpNew = (a, b) => b.first_seen.localeCompare(a.first_seen) || (a.pos ?? 1e9) - (b.pos ?? 1e9);
+const cmpNew = (a, b) => (b.num || 0) - (a.num || 0) || b.first_seen.localeCompare(a.first_seen);
+const PAGE = 60;
+let shown = PAGE;
 
 function toast(msg) {
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
@@ -154,9 +158,9 @@ function render() {
     : sort === 'old' ? -cmpNew(a, b) : cmpNew(a, b));
 
   const grid = $('#grid'); grid.innerHTML = '';
-  for (const b of list.slice(0, 600)) {
+  for (const b of list.slice(0, shown)) {
     const read = readSet.has(b.id), h = hue(b.title);
-    const dl = b.can_download === false ? '' : `<a class="btn dl" href="${esc(b.download_url || b.page_url || b.read_url)}" target="_blank" rel="noopener">⬇ โหลด</a>`;
+    const dl = `<a class="btn dl" href="${esc(b.page_url || b.read_url)}" target="_blank" rel="noopener">⬇ โหลด</a>`;
     const badge = b.gone ? '<span class="badge gone">ถูกลบแล้ว</span>' : isNew(b) ? '<span class="badge">ใหม่</span>' : read ? '<span class="badge read">อ่านแล้ว</span>' : '';
     const el = document.createElement('article');
     el.className = 'card' + (read ? ' is-read' : '');
@@ -164,11 +168,11 @@ function render() {
       <div class="cover" style="--c1:hsl(${h} 55% 42%);--c2:hsl(${(h + 40) % 360} 60% 30%)">
         ${badge}
         ${b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
-        <div class="cap">${esc(b.title)}</div>
+        <div class="cap">${b.cover ? '' : esc(b.title)}</div>
       </div>
       <div class="body">
         <h3>${esc(b.title)}</h3>
-        <div class="meta"><span class="src">${esc(b.user)}</span><span>เจอเมื่อ ${fmt(b.first_seen)}</span></div>
+        <div class="meta"><span class="src">${esc(b.user)}</span><span>เพิ่มในรายการ ${fmt(b.first_seen)}</span></div>
         <div class="actions">
           <a class="btn primary" href="${esc(b.read_url)}" target="_blank" rel="noopener">เปิดอ่าน</a>
           ${dl}
@@ -177,6 +181,8 @@ function render() {
       </div>`;
     grid.appendChild(el);
   }
+  $('#more').hidden = list.length <= shown;
+  $('#more').textContent = `แสดงเพิ่ม (เหลืออีก ${(list.length - shown).toLocaleString('th-TH')} เล่ม)`;
   $('#empty').hidden = list.length > 0;
   $('#empty').textContent = books.length ? 'ไม่พบเรื่องที่ค้นหา ลองพิมพ์สั้นลง' : 'ยังไม่มีข้อมูล';
 
@@ -191,10 +197,12 @@ function render() {
   });
 }
 
-$('#q').addEventListener('input', e => { query = e.target.value; render(); });
-$('#sort').addEventListener('change', e => { sort = e.target.value; render(); });
+let qTimer;
+$('#q').addEventListener('input', e => { clearTimeout(qTimer); qTimer = setTimeout(() => { query = e.target.value; shown = PAGE; render(); }, 150); });
+$('#sort').addEventListener('change', e => { sort = e.target.value; shown = PAGE; render(); });
+$('#more').addEventListener('click', () => { shown += PAGE * 2; render(); });
 $('#tabs').addEventListener('click', e => {
-  const t = e.target.closest('.tab'); if (!t) return; src = t.dataset.src; render();
+  const t = e.target.closest('.tab'); if (!t) return; src = t.dataset.src; shown = PAGE; render();
 });
 $('#grid').addEventListener('click', e => {
   const r = e.target.closest('[data-read]'); if (!r) return;
