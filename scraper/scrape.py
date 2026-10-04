@@ -14,6 +14,8 @@ import requests
 from bs4 import BeautifulSoup
 
 USERS = ["aswhk", "fqeu"]
+if __import__("os").environ.get("DEBUG_ONE"):
+    USERS = USERS[:1]
 MAX_PAGES = 200
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "site" / "books.json"
@@ -124,6 +126,15 @@ def dump(html, label):
                 print("  js>", m[:160])
     for m in sorted(set(re.findall(r"(?:data-[\w-]+|id|class)=\"[^\"]*(?:book|item|list|page|more)[^\"]*\"", html, re.I)))[:60]:
         print("  attr", m[:160])
+    for sc in soup.find_all('script'):
+        t = sc.get_text()
+        if re.search(r"homepage-books|encrypt|password|pwd", t, re.I):
+            print("  ==== SCRIPT ====")
+            print(t[:6000])
+    for f in soup.find_all(['form', 'input']):
+        print("  form", str(f)[:300])
+    for m in re.finditer(r"encrypt", html, re.I):
+        print("  ctx", html[max(0, m.start()-400):m.end()+600].replace("\n", " ")[:1000])
     body = soup.body.get_text(" ", strip=True) if soup.body else ""
     print("  text:", body[:1500])
 
