@@ -167,7 +167,7 @@ function render() {
     el.innerHTML = `
       <div class="cover" style="--c1:hsl(${h} 55% 42%);--c2:hsl(${(h + 40) % 360} 60% 30%)">
         ${badge}
-        ${b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
+        ${b.cover ? `<img src="${esc(b.cover)}" alt="${esc(b.title)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.nextElementSibling.textContent=this.alt;this.remove()">` : ''}
         <div class="cap">${b.cover ? '' : esc(b.title)}</div>
       </div>
       <div class="body">
