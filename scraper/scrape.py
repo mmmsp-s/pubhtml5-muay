@@ -199,6 +199,7 @@ def main():
         old = {b["id"]: b for b in json.loads(OUT.read_text(encoding="utf-8")).get("books", [])}
 
     total_live = 0
+    checks_left = 300  # จำกัดการเปิดหน้ารายละเอียดต่อรอบ ที่เหลือทำรอบถัดไป
     live_ids = set()
     for user in USERS:
         print(f"== {user}")
@@ -215,9 +216,10 @@ def main():
             merged["read_url"] = f"https://online.pubhtml5.com/{user}/{b['bid']}/"
             if not merged.get("title"):
                 merged["title"] = b["bid"]
-            if "can_download" not in prev:
+            if "can_download" not in prev and checks_left > 0:
+                checks_left -= 1
                 merged["can_download"], merged["download_url"] = check_download(merged)
-                time.sleep(0.5)
+                time.sleep(0.3)
             old[b["id"]] = merged
 
     if total_live == 0:
